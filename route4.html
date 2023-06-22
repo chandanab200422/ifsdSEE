@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>CRUD Operations with React</title>
+  <script src="https://unpkg.com/react/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/babel-standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    function City({ city, onDelete }) {
+      const handleDelete = async () => {
+        try {
+          await axios.delete(`/cities/${city.id}`);
+          onDelete(city.id);
+          console.log(`City ${city.id} deleted`);
+        } catch (error) {
+          console.error('Error deleting city:', error);
+        }
+      };
+
+      return (
+        <div>
+          <p>
+            {city.name}
+            <button onClick={handleDelete}>Delete</button>
+          </p>
+        </div>
+      );
+    }
+
+    function Leg({ leg, onDelete }) {
+      const handleDelete = async () => {
+        try {
+          await axios.delete(`/legs/${leg.id}`);
+          onDelete(leg.id);
+          console.log(`Leg ${leg.id} deleted`);
+        } catch (error) {
+          console.error('Error deleting leg:', error);
+        }
+      };
+
+      return (
+        <div>
+          <p>
+            City 1: {leg.city1.name}, City 2: {leg.city2.name}, Cost: {leg.cost}
+            <button onClick={handleDelete}>Delete</button>
+          </p>
+        </div>
+      );
+    }
+
+    function Route({ route }) {
+      const [legs, setLegs] = useState([]);
+
+      useEffect(() => {
+        setLegs(route.legs);
+      }, [route.legs]);
+
+      const handleLegDelete = (legId) => {
+        setLegs((prevLegs) => prevLegs.filter((leg) => leg.id !== legId));
+      };
+
+      return (
+        <div>
+          <h3>Route</h3>
+          {legs.map((leg) => (
+            <Leg key={leg.id} leg={leg} onDelete={handleLegDelete} />
+          ))}
+          <p>Total Cost: {route.calculateTotalCost()}</p>
+        </div>
+      );
+    }
+
+    function CreateCity({ onCreate }) {
+      const [name, setName] = useState('');
+
+      const handleSubmit = async (event) => {
+        event.preventDefault();
+        try {
+          const response = await axios.post('/cities', { name });
+          onCreate(response.data);
+          console.log('New city created');
+          setName('');
+        } catch (error) {
+          console.error('Error creating city:', error);
+        }
+      };
+
+      return (
+        <div>
+          <h4>Create City</h4>
+          <form onSubmit={handleSubmit}>
+            <label>
+              Name:
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} required />
+            </label>
+            <br />
+            <button type="submit">Create</button>
+          </form>
+        </div>
+      );
+    }
+
+    function CreateLeg({ cities, onCreate }) {
+      const [city1, setCity1] = useState('');
+      const [city2, setCity2] = useState('');
+      const [cost, setCost] = useState('');
+
+      const handleSubmit = async (event) => {
+        event.preventDefault();
+        try {
+          const response = await axios.post('/legs', { city1, city2, cost });
+          onCreate(response.data);
+          console.log('New leg created');
+          setCity1('');
+          setCity2('');
+          setCost('');
+        } catch (error) {
+          console.error('Error creating leg:', error);
+        }
+      };
+
+      return (
+        <div>
+          <h4>Create Leg</h4>
+          <form onSubmit={handleSubmit}>
+            <label>
+              City 1:
+              <select value={city1} onChange={(e) => setCity1(e.target.value)} required>
+                <option value="">Select City</option>
+                {cities.map((city) => (
+                  <option key={city.id} value={city.id}>{city.name}</option>
+                ))}
+              </select>
+            </label>
+            <br />
+            <label>
+              City 2:
+              <select value={city2} onChange={(e) => setCity2(e.target.value)} required>
+                <option value="">Select City</option>
+                {cities.map((city) => (
+                  <option key={city.id} value={city.id}>{city.name}</option>
+                ))}
+              </select>
+            </label>
+            <br />
+            <label>
+              Cost:
+              <input type="number" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} required />
+            </label>
+            <br />
+            <button type="submit">Create</button>
+          </form>
+        </div>
+      );
+    }
+
+    function App() {
+      const [cities, setCities] = useState([]);
+      const [legs, setLegs] = useState([]);
+      const [route, setRoute] = useState(null);
+
+      useEffect(() => {
+        const fetchCities = async () => {
+          try {
+            const response = await axios.get('/cities');
+            setCities(response.data);
+          } catch (error) {
+            console.error('Error fetching cities:', error);
+          }
+        };
+
+        const fetchLegs = async () => {
+          try {
+            const response = await axios.get('/legs');
+            setLegs(response.data);
+          } catch (error) {
+            console.error('Error fetching legs:', error);
+          }
+        };
+
+        fetchCities();
+        fetchLegs();
+      }, []);
+
+      const handleCityCreate = (newCity) => {
+        setCities((prevCities) => [...prevCities, newCity]);
+      };
+
+      const handleLegCreate = (newLeg) => {
+        setLegs((prevLegs) => [...prevLegs, newLeg]);
+      };
+
+      const handleLegDelete = (legId) => {
+        setLegs((prevLegs) => prevLegs.filter((leg) => leg.id !== legId));
+      };
+
+      const handleRouteCreate = () => {
+        const routeLegs = legs.filter((leg) => leg.routeId === routeId);
+        const newRoute = new Route();
+        for (const leg of routeLegs) {
+          newRoute.addLeg(leg);
+        }
+        setRoute(newRoute);
+      };
+
+      return (
+        <div>
+          <h1>CRUD Operations with React</h1>
+          <div>
+            <h3>Cities</h3>
+            {cities.map((city) => (
+              <City key={city.id} city={city} onDelete={handleCityDelete} />
+            ))}
+            <CreateCity onCreate={handleCityCreate} />
+          </div>
+          <div>
+            <h3>Legs</h3>
+            {legs.map((leg) => (
+              <Leg key={leg.id} leg={leg} onDelete={handleLegDelete} />
+            ))}
+            <CreateLeg cities={cities} onCreate={handleLegCreate} />
+          </div>
+          {route && <Route route={route} />}
+        </div>
+      );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
